@@ -1,0 +1,55 @@
+{
+	"name": "speechdev",
+	"productName": "SpeechDev",
+	"version": "1.1.5",
+	"description": "A simple chat app for small teams.",
+	"license": "MIT",
+	"author": {
+		"name": "Joseph Huckaby",
+		"email": "jhuckaby@gmail.com",
+		"url": "https://pixlcore.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/jhuckaby/SpeechBubble"
+	},
+	"bugs": {
+		"url": "https://github.com/jhuckaby/SpeechBubble/issues"
+	},
+	"scripts": {
+		"start": "electron .",
+		"build-mac": "xattr -cr . && electron-packager . \"$npm_package_productName\" --platform=darwin --arch=x64 --app-bundle-id=\"com.pixlcore.$npm_package_name\" --app-version=\"$npm_package_version\" --build-version=\"$npm_package_version\" --out=dist --overwrite --icon=icon.icns --osx-sign",
+		"dist-mac": "electron-osx-flat dist/$npm_package_productName-darwin-x64/$npm_package_productName.app --pkg dist/$npm_package_productName-darwin-x64/$npm_package_productName-$npm_package_version.pkg",
+		"dist-s3": "~/bin/sb-s3-dist.js",
+		"rebuild-native": "electron-rebuild"
+	},
+	"keywords": [
+		"electron-app",
+		"electron"
+	],
+	"dependencies": {
+		"electron-store": "1.3.0",
+		"electron-context-menu": "0.9.1",
+		"electron-debug": "1.5.0",
+		"spellchecker": "3.4.4",
+		"electron-window-state": "4.1.1",
+		"emoji-datasource": "4.0.3",
+		"env-paths": "1.0.0",
+		"glob": "7.1.1",
+		"jquery": "3.1.1",
+		"mkdirp": "0.5.1",
+		"popper.js": "1.0.4",
+		"sanitize-html": "1.18.2",
+		"strip-indent": "2.0.0",
+		"marked": "0.5.2",
+		"webcamjs": "1.0.18",
+		"zeroupload": "^1.0.0"
+	},
+	"devDependencies": {
+		"electron": "1.8.4",
+		"electron-packager": "12.2.0",
+		"electron-rebuild": "1.7.3"
+	},
+	"updateServer": "s3.speech.im",
+	"geoAPIKey": ""
+}

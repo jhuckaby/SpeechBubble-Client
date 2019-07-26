@@ -1,0 +1,55 @@
+:root {
+	--background-color: rgb(248, 248, 248);
+	--background-transparent-color: rgba(248, 248, 248, 0.0);
+	
+	--border-color: rgb(221, 221, 221);
+	
+	--header-background-color: rgb(255, 255, 255);
+	--footer-background-color: rgb(255, 255, 255);
+	--dialog-background-color: rgb(255, 255, 255);
+	--app-background-color: rgb(242, 242, 242);
+	
+	--header-text-color: rgb(128, 128, 128);
+	--body-text-color: rgb(84, 84, 84);
+	
+	--bubble-background-color: rgb(255, 255, 255);
+	--bubble-border-color: rgb(221, 221, 221);
+	
+	/* --bubble-edited-color: rgb(224, 192, 0); */
+	
+	--icon-color: rgb(164, 164, 164);
+	
+	/* --highlight-color: #7cafda; */
+	/* --highlight-color: #5890db; */
+}
+
+div.progress_bar_container {
+	box-shadow: 1px 1px 1px 0px var(--bubble-border-color);
+}
+
+code.sb_inline {
+	background-color: #eee;
+}
+
+.markdown-body p code {
+	background-color: #eee;
+}
+
+.markdown-body pre {
+	background-color: #f8f8f8;
+}
+
+.markdown-body table tr th {
+	background-color: #eee;
+}
+
+/* Prefs */
+
+.prefs_avatar_webcam_overlay { 
+	background: white; 
+	mix-blend-mode: lighten;
+}
+
+.prefs_avatar_webcam_overlay_inner {
+	background: black;
+}

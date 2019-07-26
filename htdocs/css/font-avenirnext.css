@@ -1,0 +1,49 @@
+/* Built-in Font on OS X Only */
+
+body {
+	font-family: AvenirNext-Regular;
+}
+
+strong, b {
+	font-family: AvenirNext-DemiBold;
+}
+
+#d_footer_textfield, #sb_header_search {
+	font-family: AvenirNext-Regular;
+}
+
+.sidebar_tab {
+	font-family: AvenirNext-DemiBold;
+}
+
+.sidebar_user {
+	font-family: AvenirNext-DemiBold;
+}
+
+.sidebar_footer_status {
+	font-family: AvenirNext-DemiBold;
+}
+
+.status_menu_item {
+	font-family: AvenirNext-DemiBold;
+}
+
+.status_menu_more {
+	font-family: AvenirNext-DemiBold;
+}
+
+.title_span {
+	font-family: AvenirNext-DemiBold;
+}
+
+.user_info_value {
+	font-family: AvenirNext-DemiBold;
+}
+
+.sel_dialog_item {
+	font-family: AvenirNext-DemiBold;
+}
+
+span.highlight {
+	font-family: AvenirNext-DemiBold;
+}

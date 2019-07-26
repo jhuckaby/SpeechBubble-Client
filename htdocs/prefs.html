@@ -1,0 +1,481 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Preferences</title>
+		<link rel="stylesheet" href="css/font-awesome.min.css">
+		<link rel="stylesheet" href="css/normalize.css">
+		<link rel="stylesheet" href="css/index.css">
+		<link rel="stylesheet" href="css/prefs.css">
+		
+		<script>
+			var app = null;
+			var electron = require('electron');
+			var remote = electron.remote;
+			var Menu = remote.Menu;
+			var MenuItem = remote.MenuItem;
+			var ipcRenderer = electron.ipcRenderer;
+			var webFrame = electron.webFrame;
+			
+			var package = require('../package.json');
+			var sanitizeHtml = require('sanitize-html');
+			var emojiData = require('emoji-datasource/emoji.json');
+			// var gemoji = require('gemoji');
+			// var emojiRegex = require('emoji-regex');
+			
+			var Config = require('electron-store');
+			
+			// receive messages from main
+			ipcRenderer.on('save_prefs', function(event, message) {
+				// window being closed
+				app.dialog.hide();
+				app.prefs.doSave();
+			});
+			ipcRenderer.on('sound_setup', function(event, message) {
+				app.sound_setup = message;
+				if (app.prefs && app.prefs.pages && app.prefs.pages.sounds) {
+					app.prefs.pages.sounds.notifySoundSetupUpdate(message);
+				}
+			});
+			ipcRenderer.on('auth_failure', function(event, message) {
+				// return to account tab and logout
+				app.clickTab('#tab_account');
+				app.doLogout();
+			});
+			
+			// prevent zoom in prefs
+			webFrame.setLayoutZoomLevelLimits(0, 0);
+		</script>
+		
+		<!-- Insert this line above script imports -->
+		<script>if (typeof module === 'object') { window.module = module; module = undefined; }</script>
+		
+		<!-- 3rd party script imports etc. -->
+		<script src="js/vendor/md5.js"></script>
+		<script src="js/vendor/jquery.min.js"></script>
+		<script src="js/vendor/highlight.pack.js"></script>
+		<script src="js/vendor/popper.min.js"></script>
+		<script src="js/vendor/zeroupload.min.js"></script>
+		<script src="js/vendor/webcam.min.js"></script>
+		
+		<!-- Insert this line after script imports -->
+		<script>if (window.module) module = window.module;</script>
+		
+		<script src="js/app.js"></script>
+		<script src="js/display.js"></script>
+		<script src="js/sidebar.js"></script>
+		<script src="js/emoji.js"></script>
+		<script src="js/dialog.js"></script>
+		<script src="js/commands.js"></script>
+		<script src="js/api.js"></script>
+		<script src="js/camera.js"></script>
+		<script src="js/sound.js"></script>
+		<script src="js/utils.js"></script>
+		
+		<script src="js/prefs.js"></script>
+	</head>
+	<body>
+		<div class="container">
+			<div class="sidebar">
+				<div class="sidebar_title_area"></div>
+				
+				<div class="sidebar_group">
+					<div class="sidebar_group_title">
+						Preferences
+					</div>
+					<div id="tab_account" class="sidebar_tab selected">Account</div>
+					<div id="tab_theme" class="sidebar_tab logged_in_only">Style</div>
+					<div id="tab_notifications" class="sidebar_tab logged_in_only">Notifications</div>
+					<div id="tab_hotkeys" class="sidebar_tab logged_in_only">Hot Keys</div>
+					<div id="tab_shortcuts" class="sidebar_tab logged_in_only">Shortcuts</div>
+					<div id="tab_sounds" class="sidebar_tab logged_in_only">Sounds</div>
+					<div id="tab_updates" class="sidebar_tab logged_in_only">Updates</div>
+				</div>
+				
+			</div>
+			<div class="main">
+				<div class="titlebar">
+					<div class="title">Account</div>
+					<div id="i_prefs_loading" class="sb_header_icon"><i class="fa fa-refresh fa-spin"></i></div>
+					<div class="clear"></div>
+				</div>
+				
+				<!-- Account Page -->
+				<div class="scrollarea" id="page_account">
+					<div class="dialog_page">
+						
+						<div id="d_prefs_account_left" class="columns six" style="z-index:2">
+							<div class="form_group">
+								<div class="form_label">Server Hostname</div>
+								<input type="text" id="fe_hostname" class="form_input"/>
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Username</div>
+								<input type="text" id="fe_username" class="form_input"/>
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Password&nbsp;<span id="s_pwd_toggle">(Show)</span></div>
+								<input type="password" id="fe_password" class="form_input"/>
+							</div>
+							
+							<div class="form_group" style="margin-bottom:6px;">
+								<input type="checkbox" id="fe_remember"/>
+								<label for="fe_remember">Remember Password</label>
+							</div>
+							
+							<div class="form_group">
+								<input type="checkbox" id="fe_ssl"/>
+								<label for="fe_ssl">Use SSL Connection</label>
+							</div>
+							
+							<div class="form_group" style="margin-top:24px">
+								<div id="btn_login" class="button center" style="width:130px">Login &raquo;</div>
+							</div>
+						</div>
+						<div id="d_prefs_account_right" class="columns six" style="z-index:1">
+							<div class="form_group">
+								<div class="form_label">Nickname</div>
+								<input type="text" id="fe_nickname" class="form_input"/>
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Full Name</div>
+								<input type="text" id="fe_fullname" class="form_input"/>
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Email Address</div>
+								<input type="text" id="fe_email" class="form_input"/>
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Custom Avatar</div>
+								<div id="d_avatar" class="form_avatar"></div>
+								<div id="btn_upload" class="form_icon" title="Upload Image..."><i class="fa fa-cloud-upload"></i></div>
+								<div id="btn_camera" class="form_icon" title="Take Snapshot..."><i class="fa fa-camera"></i></div>
+								<div id="btn_delete" class="form_icon" title="Delete Avatar"><i class="fa fa-trash"></i></div>
+							</div>
+							
+							<div class="form_group" style="margin-top:20px">
+								<div id="btn_server" class="button center" style="width:130px">Open Server&hellip;</div>
+							</div>
+						</div>
+						<div class="clear"></div>
+						
+					</div>
+				</div> <!-- page_account -->
+				
+				<!-- Theme Page -->
+				<div class="scrollarea" id="page_theme" style="display:none">
+					<div class="dialog_page">
+						<div class="columns six">
+						
+							<div class="form_group">
+								<div class="form_label">Theme</div>
+								<select id="fe_theme">
+									<option value="dark">Dark</option>
+									<option value="light">Light</option>
+								</select>
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Main Font</div>
+								<div><select id="fe_font">
+									<option value="avenirnext">Avenir Next</option>
+									<option value="helvetica">Helvetica</option>
+									<option value="lato">Lato</option>
+									<option value="muli">Muli</option>
+									<option value="opensans">Open Sans</option>
+									<option value="sourcesanspro">Source Sans Pro</option>
+									<option value="ubuntu">Ubuntu</option>
+								</select></div>
+								<div id="d_prefs_sample_text_main" class="sb_chat_row_container" style="padding-right:0;">
+									<div class="sb_chat_row_avatar"></div>
+									<div class="sb_chat_row_nick"></div>
+									<div class="sb_chat_bubble">
+										Sample text here.
+									</div>
+								</div>
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Code Font</div>
+								<div><select id="fe_mfont">
+									<option value="anonymouspro">Anonymous Pro</option>
+									<option value="firamono">Fira Mono</option>
+									<option value="inconsolata">Inconsolata</option>
+									<option value="robotomono">Roboto Mono</option>
+									<option value="sourcecodepro">Source Code Pro</option>
+									<option value="ubuntumono">Ubuntu Mono</option>
+								</select></div>
+								<div id="d_prefs_sample_text_code" class="sb_chat_row_container" style="padding-right:0;">
+									<div class="sb_chat_row_avatar"></div>
+									<div class="sb_chat_row_nick"></div>
+									<div class="sb_chat_bubble">
+									</div>
+								</div>
+							</div>
+						
+						</div>
+						<div class="columns six">
+						
+							<div class="form_group" style="display:inline-block; margin-right:12px; text-align:center;">
+								<div class="form_label">Sidebar</div>
+								<input type="color" id="fe_sidebar_color" title="Select Sidebar Color...">
+							</div>
+							<div class="form_group" style="display:inline-block; margin-right:12px; text-align:center;">
+								<div class="form_label">Highlight</div>
+								<input type="color" id="fe_highlight_color" title="Select Highlight Color...">
+							</div>
+							<div class="form_group" style="display:inline-block; text-align:center;">
+								<div class="form_label">Edited</div>
+								<input type="color" id="fe_edit_color" title="Select Edited Color...">
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Emoji Style</div>
+								<div><select id="fe_emoji_style">
+									<option value="apple">Apple</option>
+									<!-- <option value="emojione">EmojiOne</option> -->
+									<option value="facebook">Facebook</option>
+									<option value="google">Google</option>
+									<option value="twitter">Twitter</option>
+								</select></div>
+								<div id="d_prefs_sample_emoji" style="margin-top:10px;">
+									
+								</div>
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Emoji Skin Tone</div>
+								<div><select id="fe_emoji_skin_tone">
+									<option value="">Default</option>
+									<option value="1F3FB">Lighter</option>
+									<option value="1F3FC">Light</option>
+									<option value="1F3FD">Medium</option>
+									<option value="1F3FE">Dark</option>
+									<option value="1F3FF">Darker</option>
+								</select></div>
+								<div id="d_prefs_sample_emoji_skin_tones" style="margin-top:10px;">
+								</div>
+							</div>
+							
+							<div class="form_group">
+								<input type="checkbox" id="fe_show_nicknames"/>
+								<label for="fe_show_nicknames">Show User Nicknames</label>
+							</div>
+							
+							<!-- <div class="form_group">
+								<input type="checkbox" id="fe_compact"/>
+								<label for="fe_compact">Compact Chat Style</label>
+							</div> -->
+						
+						</div>
+					</div>
+				</div> <!-- page_theme -->
+				
+				<!-- Notifications Page -->
+				<div class="scrollarea" id="page_notifications" style="display:none">
+					<div class="dialog_page">
+						<div class="columns six">
+							
+							<div class="form_group">
+								<div><input type="checkbox" id="fe_show_notifications"/>
+								<label for="fe_show_notifications">Show Notifications</label></div>
+								<div><select id="fe_notification_types">
+									<option value="all">All Messages</option>
+									<option value="highlights">Highlights Only</option>
+									<option value="pms">Private Messages Only</option>
+									<option value="highlights_pms">Highlights & PMs</option>
+								</select></div>
+							</div>
+							
+						</div>
+						<div class="columns six">
+							
+							<div class="form_group">
+								<div><input type="checkbox" id="fe_bounce_icon"/>
+								<label for="fe_bounce_icon">Bounce Dock Icon</label></div>
+								<div><select id="fe_bounce_types">
+									<option value="all">All Messages</option>
+									<option value="highlights">Highlights Only</option>
+									<option value="pms">Private Messages Only</option>
+									<option value="highlights_pms">Highlights & PMs</option>
+								</select></div>
+							</div>
+							
+						</div>
+						<div class="clear"></div>
+						
+						<div class="form_group" style="margin-bottom:13px;">
+							<div class="form_label">Highlight Words</div>
+							<input type="text" id="fe_highlight_words" class="form_input" placeholder="Highlight these words or phrases (comma-separated)"/>
+						</div>
+						
+						<div class="form_group" style="margin-bottom:13px;">
+							<div class="form_label">Ignore Users</div>
+							<input type="text" id="fe_ignore_users" class="form_input" placeholder="Ignore highlights from these users (comma-separated)"/>
+						</div>
+						
+						<div class="form_group">
+							<div class="form_label">Hide Users</div>
+							<input type="text" id="fe_hide_users" class="form_input" placeholder="Hide all messages from these users (comma-separated)"/>
+						</div>
+						
+						<div class="form_group" style="margin-bottom:5px;">
+							<div><input type="checkbox" id="fe_auto_away"/>
+							<label for="fe_auto_away" id="lbl_auto_away">Set my status to <b>Screensaver</b> when it activates</label></div>
+						</div>
+						<div class="form_group">
+							<div><input type="checkbox" id="fe_auto_back"/>
+							<label for="fe_auto_back" id="lbl_auto_back">Set my status to <b>Available</b> when I return</label></div>
+						</div>
+					</div>
+				</div> <!-- page_notifications -->
+				
+				<!-- Hot Keys Page -->
+				<div class="scrollarea" id="page_hotkeys" style="display:none">
+					<div class="dialog_page">
+							
+						<div class="form_group" style="margin-top:25px">
+							<!-- <div class="form_label">Hot Keys</div> -->
+							<div id="d_hot_keys" class="form_scrollarea" style="height:223px; padding-top:5px; padding-bottom:10px;"></div>
+						</div>
+						
+						<div>
+							<div class="columns six">
+								<div class="form_group" style="margin-top:6px">
+									<div id="btn_hk_reset" class="button center" style="width:140px">Reset to Defaults</div>
+								</div>
+							</div>
+							<div class="columns six">
+								<div class="form_group" style="margin-top:6px">
+									<div id="btn_hk_add" class="button center" style="width:140px">New Hot Key...</div>
+								</div>
+							</div>
+							<div class="clear"></div>
+						</div>
+					</div>
+				</div> <!-- page_hotkeys -->
+				
+				<!-- Shortcuts Page -->
+				<div class="scrollarea" id="page_shortcuts" style="display:none">
+					<div class="dialog_page">
+							
+						<div class="form_group" style="margin-top:25px">
+							<div id="d_shortcuts" class="form_scrollarea" style="height:223px; padding-top:5px; padding-bottom:10px;"></div>
+						</div>
+						
+						<div>
+							<div class="columns six">
+								<div class="form_group" style="margin-top:6px">
+									<div id="btn_sc_reset" class="button center" style="width:140px">Delete All</div>
+								</div>
+							</div>
+							<div class="columns six">
+								<div class="form_group" style="margin-top:6px">
+									<div id="btn_sc_add" class="button center" style="width:140px">New Shortcut...</div>
+								</div>
+							</div>
+							<div class="clear"></div>
+						</div>
+					</div>
+				</div> <!-- page_shortcuts -->
+				
+				<!-- Sounds Page -->
+				<div class="scrollarea" id="page_sounds" style="display:none">
+					<div class="dialog_page">
+					
+						<div class="columns six">
+							<div class="form_group">
+								<div class="form_label">Sound Pack</div>
+								<div><select id="fe_sound_pack">
+									<option value="pack1">Sound Pack 1</option>
+									<option value="pack2">Sound Pack 2</option>
+									<option value="pack3">Sound Pack 3</option>
+									<option value="chatterclassic">Chatter Classic</option>
+									<option value="custom">Custom</option>
+								</select></div>
+							</div>
+							
+							<div class="form_group">
+								<div class="form_label">Sound Effects</div>
+								<div id="d_sound_effects" class="form_scrollarea" style="height:135px;"></div>
+							</div>
+						</div>
+						<div class="columns six">
+							<div class="form_group">
+								<div id="d_sound_volume" class="form_label">Sound Volume</div>
+								<div><input type="range" id="fe_volume" class="form_range" value="0" min="0" max="1" step="0.1"/></div>
+							</div>
+							
+							<div class="form_group" style="margin-bottom:4px;">
+								<div class="form_label">Options</div>
+								<div><input type="checkbox" id="fe_auto_media"/>
+								<label for="fe_auto_media">Show inline media</label></div>
+							</div>
+							<div class="form_group" style="margin-bottom:4px;">
+								<div><input type="checkbox" id="fe_auto_play"/>
+								<label for="fe_auto_play">Autoplay user sounds</label></div>
+							</div>
+							<div class="form_group" style="margin-bottom:4px;">
+								<div><input type="checkbox" id="fe_emoji_sounds"/>
+								<label for="fe_emoji_sounds">Play Emoji Sounds</label></div>
+							</div>
+							<div class="form_group" style="margin-bottom:0px;">
+								<div><input type="checkbox" id="fe_mute_chat_sounds_in_focus"/>
+								<label for="fe_mute_chat_sounds_in_focus">Mute Foreground Chat</label></div>
+							</div>
+							
+							<div class="form_group" style="margin-top:14px">
+								<div id="btn_open_folder" class="button center" style="width:100%;">Open Sounds Folder...</div>
+							</div>
+							
+						</div>
+						<div class="clear"></div>
+						
+						<div class="form_group">
+							<div class="form_label">Mute Users</div>
+							<input type="text" id="fe_mute_users" class="form_input" placeholder="Don't show inline media from these users (comma-separated)"/>
+						</div>
+						
+					</div>
+				</div> <!-- page_sounds -->
+				
+				<!-- Updates Page -->
+				<div class="scrollarea" id="page_updates" style="display:none">
+					<div class="dialog_page">
+						<div class="columns ten" id="d_prefs_updates">
+							
+							<div class="form_group" style="margin-bottom:5px;">
+								<div><input type="checkbox" id="fe_auto_update_enabled"/>
+								<label for="fe_auto_update_enabled">Automatically download and install updates</label></div>
+							</div>
+							<div class="form_group" style="margin-bottom:20px;">
+								<div><input type="checkbox" id="fe_auto_update_notify"/>
+								<label for="fe_auto_update_notify">Notify me when an update has been downloaded</label></div>
+							</div>
+							
+							<div id="d_update_state"></div>
+							
+						</div>
+					</div>
+				</div> <!-- page_updates -->
+				
+			</div>
+		</div>
+		
+		<div id="popper_dialog_overlay" onmouseup="event.preventDefault();app.dialog.hide()"></div>
+		<div id="popper_dialog_container" class="popper">
+			<div id="popper_dialog"></div>
+			<div class="popper_arrow" x-arrow="x-arrow"></div>
+		</div>
+		
+		<script>
+			window.addEventListener( "keydown", app.prefs.handleKeyDown.bind(app.prefs), false );
+			app.prefs.init();
+		</script>
+	</body>
+</html>

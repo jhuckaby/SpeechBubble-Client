@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>SpeechBubble</title>
+		<link rel="stylesheet" href="css/font-awesome.min.css">
+		<link rel="stylesheet" href="css/normalize.css">
+		<link rel="stylesheet" href="css/index.css">
+		
+		<script>
+			var app = null;
+			var electron = require('electron');
+			var remote = electron.remote;
+			var Menu = remote.Menu;
+			var MenuItem = remote.MenuItem;
+			var ipcRenderer = electron.ipcRenderer;
+			var clipboard = electron.clipboard;
+			var package = require('../package.json');
+			
+			var sanitizeHtml = require('sanitize-html');
+			var stripIndent = require('strip-indent');
+			var emojiData = require('emoji-datasource/emoji.json');
+			// var emojiRegex = require('emoji-regex');
+			
+			var Config = require('electron-store');
+			
+			// receive messages from main
+			ipcRenderer.on('login', function(event, message) {
+				Debug.trace('ipc', "Got login event from main process");
+				location.reload();
+			});
+			ipcRenderer.on('logout', function(event, message) {
+				Debug.trace('ipc', "Got logout event from main process");
+				// app.sound.play('logout');
+				app.reset();
+			});
+			ipcRenderer.on('prefs_changed', function(event, changes) {
+				app.prefsChanged(changes);
+			});
+			ipcRenderer.on('sound_setup', function(event, message) {
+				app.sound_setup = message;
+			});
+			ipcRenderer.on('screen_status', function(event, message) {
+				app.receiveScreenStatus(message);
+			});
+			ipcRenderer.on('ssl_cert_warning', function(event, message) {
+				Debug.trace('ssl', "Certificate warning: ", message);
+				app.ssl_cert_warning = message;
+			});
+			ipcRenderer.on('embed_templates', function(event, message) {
+				app.embed.templates = message;
+			});
+			
+			ipcRenderer.on('focus', function(event, message) {
+				if (app) app.mainFocus = true;
+			});
+			ipcRenderer.on('blur', function(event, message) {
+				if (app) app.mainFocus = false;
+			});
+			
+			ipcRenderer.on('cmd', function(event, message) {
+				// allow node.js to send slash commands (i.e. from menu bar)
+				if (app.commands && app.commands[message.cmd]) app.commands[message.cmd]( message.text );
+			});
+			
+			ipcRenderer.on('auto_update_state', function(event, message) {
+				if (app && app.update) app.update.receiveState(message);
+			});
+			ipcRenderer.on('update_downloaded', function(event, message) {
+				if (app && app.update) app.update.updateDownloaded(message);
+			});
+			
+			ipcRenderer.on('ssl_cert_info', function(event, message) {
+				if (app) app.ssl_cert_info = message;
+			});
+			
+			ipcRenderer.on('speech_url', function(event, message) {
+				// special internal speech:// URL protocol
+				if (app && message.url) app.evalSpeechURL(message.url);
+			});
+		</script>
+		
+		<!-- Insert this line above script imports -->
+		<script>if (typeof module === 'object') { window.module = module; module = undefined; }</script>
+		
+		<!-- 3rd party script imports etc. -->
+		<script src="js/vendor/md5.js"></script>
+		<script src="js/vendor/jquery.min.js"></script>
+		<script src="js/vendor/jquery.easing.js"></script>
+		<script src="js/vendor/highlight.pack.js"></script>
+		<script src="js/vendor/popper.min.js"></script>
+		<script src="js/vendor/marked.min.js"></script>
+		<script src="js/vendor/zeroupload.min.js"></script>
+		<script src="js/vendor/webcam.min.js"></script>
+		<script src="js/vendor/dragsort.js"></script>
+		
+		<!-- Insert this line after script imports -->
+		<script>if (window.module) module = window.module;</script>
+		<script src="js/app.js"></script>
+		<script src="js/display.js"></script>
+		<script src="js/sidebar.js"></script>
+		<script src="js/emoji.js"></script>
+		<script src="js/dialog.js"></script>
+		<script src="js/commands.js"></script>
+		<script src="js/api.js"></script>
+		<script src="js/comm.js"></script>
+		<script src="js/camera.js"></script>
+		<script src="js/sound.js"></script>
+		<script src="js/utils.js"></script>
+		<script src="js/spell.js"></script>
+		<script src="js/embed.js"></script>
+		<script src="js/upload.js"></script>
+		<script src="js/search.js"></script>
+		<script src="js/timeline.js"></script>
+		<script src="js/favorites.js"></script>
+		<script src="js/update.js"></script>
+		<script src="js/react.js"></script>
+	</head>
+	<body>
+		<div id="splash">
+			<div id="preloader"><i class="fa fa-refresh fa-spin"></i></div>
+		</div>
+		
+		<div class="container">
+			<div class="sidebar">
+				<div class="sidebar_title_area"></div>
+				
+				<div class="sidebar_scrollarea">
+					<div id="sg_channels" class="sidebar_group">
+						<div class="sidebar_group_title">
+							<div id="i_join_channel" class="sidebar_group_plus"><i class="fa fa-plus"></i></div>
+							Channels
+						</div>
+					</div>
+					
+					<div id="sg_chats" class="sidebar_group">
+						<div class="sidebar_group_title">
+							<div id="i_join_private" class="sidebar_group_plus"><i class="fa fa-plus"></i></div>
+							Chats
+						</div>
+					</div>
+					
+					<div id="sg_other" class="sidebar_group">
+						<div class="sidebar_group_title">Other</div>
+						<div class="sidebar_tab" id="st_--search" onMouseUp="app.sidebar.selectSearch()"><i class="fa fa-search">&nbsp;</i>Search</div>
+						<div class="sidebar_tab" id="st_--timeline" onMouseUp="app.sidebar.selectTimeline()"><i class="fa fa-history">&nbsp;</i>Timeline</div>
+						<div class="sidebar_tab" id="st_--favorites" onMouseUp="app.sidebar.selectFavorites()"><i class="fa fa-star-o">&nbsp;</i>Favorites</div>
+					</div>
+					
+					<div id="sg_who" class="sidebar_group">
+						<div class="sidebar_group_title">Who's Here</div>
+					</div>
+				</div>
+				
+				<div class="sidebar_footer">
+					<div class="sidebar_footer_status">
+						<div class="sidebar_footer_status_nib"><i class="fa fa-caret-down"></i></div>
+					</div>
+				</div>
+			</div>
+			<div id="d_main" class="main">
+				<div class="titlebar">
+					<div class="title_container">
+						<span id="s_title" class="title_span"></span>
+						<span id="s_topic" class="topic_span"></span>
+					</div>
+					
+					<div class="title_widgets">
+						<div id="i_channel_settings" class="sb_header_icon cog" title="Channel Settings"><i class="fa fa-cog"></i></div>
+						<div id="i_toggle_sound" class="sb_header_icon volume" title="Toggle Sound"><i></i></div>
+						<div id="i_ssl" class="sb_header_icon ssl" style="display:none" title="Your connection is secure."><i class="fa fa-lock"></i></div>
+						
+						<div id="sb_header_search_container">
+							<input type="text" id="sb_header_search" placeholder="Search" value=""/>
+							<div id="sb_header_search_icon"><i class="fa fa-search"></i></div>
+						</div>
+						
+						<div class="clear"></div>
+					</div>
+				</div>
+				
+				<div class="entrybar">
+					<div id="d_footer_textfield_container">
+						<div id="d_footer_textfield" contentEditable="true"></div>
+					</div>
+					<div id="d_footer_icon_container">
+						<div id="i_take_snapshot" class="sb_footer_icon camera" title="Take Snapshot..."><i class="fa fa-camera"></i></div>
+						<div id="i_upload_file" class="sb_footer_icon upload" title="Upload File..."><i class="fa fa-cloud-upload"></i></div>
+						<div id="i_code_toggle" class="sb_footer_icon code" title="Format as Code"><i class="fa fa-code"></i></div>
+						<div id="i_pick_emoji" class="sb_footer_icon smile" title="Insert Emoji..."><i class="fa fa-smile-o"></i></div>
+						<div class="clear"></div>
+					</div>
+					<div id="d_footer_search_container" style="display:none">
+						<div class="sb_footer_widget"><select id="fe_search_date"></select></div>
+						<div class="sb_footer_widget"><select id="fe_search_user"></select></div>
+						<div class="sb_footer_widget"><select id="fe_search_channel"></select></div>
+						<div class="clear"></div>
+					</div>
+					<div id="d_footer_timeline_container" style="display:none">
+						<div class="sb_timeline_widget widget_label">Jump to:</div>
+						<div class="sb_timeline_widget"><select id="fe_timeline_channel" onChange="app.timeline.jump()"></select></div>
+						<div class="sb_timeline_widget"><select id="fe_timeline_year" onChange="app.timeline.jump()"></select></div>
+						<div class="sb_timeline_widget"><select id="fe_timeline_month" onChange="app.timeline.jump()"></select></div>
+						<div class="sb_timeline_widget"><select id="fe_timeline_day" onChange="app.timeline.jump()"></select></div>
+						<div class="sb_timeline_widget"><select id="fe_timeline_hour" onChange="app.timeline.jump()"></select></div>
+						<!-- <div class="sb_timeline_widget"><div class="button" style="width:80px" onMouseUp="app.timeline.jump()">Jump</div></div> -->
+						<div class="clear"></div>
+					</div>
+					<div id="d_footer_favorites_container" style="display:none">
+						<!-- <div class="sb_timeline_widget widget_label">Right-click on any message to add to or remove from favorites.</div>
+						<div class="clear"></div> -->
+					</div>
+				</div>
+				
+				<div class="fade_top"></div>
+				<div class="fade_bottom"></div>
+				
+				<div id="typing_container"></div>
+				
+				<div class="scrollarea" id="sa_--search">
+					<div class="special_banner" style="margin-top:40vh">
+						<div class="banner_title">Search Instructions</div>
+						<div class="banner_text">
+							<p>Enter your search query into the text entry bar below.  To match an exact phrase, surround it with <code>"double quotes"</code>.  For negative word or phrase matches, prefix with a dash (<code>-</code>).  To match on any word in a set, separate them all with pipes (<code>|</code>).</p>
+							<p>Click the gear icon (<i class="fa fa-cog"></i>) in the top-right corner to select a search preset.</p>
+						</div>
+					</div>
+				</div>
+				<div class="scrollarea" id="sa_--timeline">
+					
+				</div>
+				<div class="scrollarea" id="sa_--favorites">
+					<!-- <div style="height:100%"></div> -->
+					<!-- <div class="special_banner">
+						<div class="banner_title">Your Favorites</div>
+					</div> -->
+				</div>
+			</div>
+		</div>
+		
+		<div id="sidebar_drag_handle"></div>
+		
+		<div id="popper_dialog_overlay" onmousedown="event.preventDefault();app.dialog.hide()"></div>
+		<div id="popper_dialog_container" class="popper">
+			<div id="popper_dialog"></div>
+			<div class="popper_arrow" x-arrow="x-arrow"></div>
+		</div>
+		
+		<script>
+			window.addEventListener( "resize", app.handleResize.bind(app), false );
+			window.addEventListener( "mousedown", app.handleMouseDown.bind(app), false );
+			window.addEventListener( "mousemove", app.handleMouseMove.bind(app), false );
+			window.addEventListener( "mouseup", app.handleMouseUp.bind(app), false );
+			window.addEventListener( "keydown", app.handleKeyDown.bind(app), true ); // note: useCapture
+			window.addEventListener( "focus", app.handleFocus.bind(app), false );
+			
+			app.init();
+		</script>
+	</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<style>
+			html, body { 
+				font-family: Helvetica, sans-serif; 
+				margin: 0;
+				padding: 0;
+				overflow: hidden;
+				width: 100%;
+				height: 100%;
+			}
+			audio {
+				margin: 0;
+				padding: 0;
+				border: none;
+				width: [maxwidth]px;
+				height: 32px;
+			}
+			body.dark audio::-webkit-media-controls-panel {
+				filter: invert(100%) hue-rotate(180deg);
+			}
+			#container {
+				display: inline-block;
+				width: auto;
+				height: auto;
+			}
+		</style>
+	</head>
+	<body class="[theme]">
+		<div id="container">
+			<audio preload="auto" [audio_autoplay] [audio_muted] controls="controls" webkit-playsinline="">
+				<source src="[url]" type="audio/[fmt]">
+			</audio>
+			<script>
+				// cannot set volume via html attribute (thanks chrome)
+				document.querySelector('audio').volume = [volume];
+			</script>
+		</div>
+	</body>
+</html>
