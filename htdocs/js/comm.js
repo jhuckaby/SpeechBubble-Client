@@ -569,13 +569,11 @@ app.comm = {
 		delete channel.ui;
 		delete channel.live_users;
 		
-		// also remove channel from prefs, but only if not kicked
-		if (data.reason != 'kick') {
-			app.config.set( 'channel_order', app.config.get('channel_order').filter( function(value) { 
-				return value != chan; 
-			} ) );
-		}
-		
+		// also remove channel from prefs
+		app.config.set( 'channel_order', app.config.get('channel_order').filter( function(value) {
+			return value != chan;
+		} ) );
+
 		// show notification if reason was 'private', 'delete', etc.
 		switch (data.reason) {
 			case 'private':
