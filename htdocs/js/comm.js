@@ -42,18 +42,9 @@ app.comm = {
 		// connect to server via websocket
 		var self = this;
 		var url = app.base_url.replace(/^http/i, "ws"); // this regexp works for both https and http
-		var progress_message = "Reconnecting to server...";
+		var progress_message = '<div class="button center" style="font-style:normal; width:140px; margin-top:10px;" onMouseUp="app.comm.socketConnect()">Reconnect to Server</div>';
 		
 		this.disconnect();
-		
-		// prevent socket reconnect if screen is asleep/off and user is idle
-		if (!this.firstConnect && this.progress && app.lastScreenStatus && (timeNow() - app.last_event_time >= 60)) {
-			// Debug.trace('comm', "Screen is " + app.lastScreenStatus + ", trying again in a sec...");
-			// hide progress bar and try again
-			$('#' + self.progress).remove();
-			setTimeout( function() { self.socketConnect(); }, 5000 );
-			return;
-		}
 		
 		Debug.trace('comm', "WebSocket Connect: " + url);
 		
@@ -139,11 +130,11 @@ app.comm = {
 				return;
 			}
 			
-			Debug.trace('comm', "Reconnecting in 5 sec...");
+			Debug.trace('comm', "Reconnecting on user action...");
 			if (!self.progress) {
 				self.progress = app.newProgressBar( 1.0, progress_message );
 			}
-			setTimeout( function() { self.socketConnect(); }, 5000 );
+			// setTimeout( function() { self.socketConnect(); }, 5000 );
 			self.socket = null;
 		};
 	},
