@@ -370,15 +370,6 @@ app.commands = {
 			// Option 4
 			new_status = 'red_circle';
 			new_hint = orig_text;
-			
-			// reverse match hint vs. user status hints, to find matching emoji
-			var status_hints = app.config.get('status_hints') || {};
-			for (var key in status_hints) {
-				if (new_hint.toLowerCase().match(status_hints[key].toLowerCase())) {
-					new_status = key;
-					break;
-				}
-			}
 		}
 		
 		var old_status = app.user.status || 'large_blue_circle';
@@ -694,9 +685,17 @@ app.commands = {
 		}
 	},
 	
-	quit: function() {
+	quit: function(text) {
 		// quit app
-		window.close();
+		if (text) {
+			var pose = 'door';
+			if (text.match(/^\s*\:([\w\-]+)\:\s*/)) {
+				post = RegExp.$1;
+				text = text.replace(/^\s*\:([\w\-]+)\:\s*/, '');
+			}
+			app.newChatMessage( 'pose', text, { pose: pose } );
+		}
+		setTimeout( function() { window.close(); }, 50 );
 	}
 	
 };
